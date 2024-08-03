@@ -47,7 +47,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           force_orphan: true
-          cname: md.yooo.lol
+          cname: xd.yohoo.icu
           commit_message: ${{ needs.release-please.outputs.tag_name }}
 
       - name: compress dist
