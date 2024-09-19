@@ -21,7 +21,7 @@ import {
   upgradingUI,
 } from '~/apis'
 import { Button, ConfigTitle } from '~/components'
-import { LANG, MODE_OPTIONS, ROUTES, themes } from '~/constants'
+import { LANG, ROUTES, themes } from '~/constants'
 import { locale, setLocale, useI18n } from '~/i18n'
 import {
   autoSwitchTheme,
@@ -179,6 +179,10 @@ const ConfigForm = () => {
     }
   })
 
+  const modes = () => {
+    return configsData()?.modes || ['rule', 'direct', 'global']
+  }
+
   return (
     <div class="flex flex-col gap-4">
       <select
@@ -188,9 +192,14 @@ const ConfigForm = () => {
           void updateBackendConfigAPI('mode', e.target.value, refetch)
         }
       >
-        <option value={MODE_OPTIONS.Global}>{t('global')}</option>
-        <option value={MODE_OPTIONS.Rule}>{t('rule')}</option>
-        <option value={MODE_OPTIONS.Direct}>{t('direct')}</option>
+        <For each={modes()}>
+          {(name) => (
+            <option value={name}>
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {t(name as any) ?? name}
+            </option>
+          )}
+        </For>
       </select>
 
       <Show when={!isSingBox()}>

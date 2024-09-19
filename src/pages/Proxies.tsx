@@ -4,6 +4,7 @@ import {
   IconReload,
   IconSettings,
 } from '@tabler/icons-solidjs'
+import byteSize from 'byte-size'
 import { twMerge } from 'tailwind-merge'
 import {
   Button,
@@ -24,6 +25,7 @@ import {
   hideUnAvailableProxies,
   proxiesOrderingType,
   renderProxiesInTwoColumns,
+  useConnections,
   useProxies,
 } from '~/signals'
 
@@ -59,6 +61,11 @@ export default () => {
     isAllProviderUpdating,
     updatingMap,
   } = useProxies()
+
+  const renderProxies = createMemo(() =>
+    proxies().filter((proxy) => !proxy.hidden),
+  )
+  const { speedGroupByName } = useConnections()
 
   const [collapsedMap, setCollapsedMap] = makePersisted(
     createSignal<Record<string, boolean>>({}),
@@ -106,7 +113,7 @@ export default () => {
     {
       type: ActiveTab.proxies,
       name: t('proxies'),
-      count: proxies().length,
+      count: renderProxies().length,
     },
     {
       type: ActiveTab.proxyProviders,
@@ -118,7 +125,7 @@ export default () => {
   return (
     <div class="flex h-full flex-col gap-2">
       <div class="flex items-center gap-2">
-        <div class="tabs-boxed tabs gap-2 pl-0">
+        <div class="tabs-boxed tabs gap-2">
           <For each={tabs()}>
             {(tab) => (
               <button
@@ -167,7 +174,7 @@ export default () => {
               renderProxiesInTwoColumns() ? 'sm:grid-cols-2' : 'sm:grid-cols-1',
             )}
           >
-            <For each={proxies()}>
+            <For each={renderProxies()}>
               {(proxyGroup) => {
                 const sortedProxyNames = createMemo(() =>
                   filterProxiesByAvailability(
@@ -208,9 +215,17 @@ export default () => {
                       />
                     </div>
 
-                    <div class="text-sm text-slate-500">
-                      {proxyGroup.type}{' '}
-                      {proxyGroup.now?.length > 0 && ` :: ${proxyGroup.now}`}
+                    <div class="flex items-center justify-between text-sm text-slate-500">
+                      <span>
+                        {proxyGroup.type}{' '}
+                        {proxyGroup.now?.length > 0 && ` :: ${proxyGroup.now}`}
+                      </span>
+                      <span>
+                        {byteSize(
+                          speedGroupByName()[proxyGroup.name] ?? 0,
+                        ).toString()}
+                        /s
+                      </span>
                     </div>
 
                     <Show when={!collapsedMap()[proxyGroup.name]}>

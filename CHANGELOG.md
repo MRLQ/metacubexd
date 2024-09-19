@@ -1,5 +1,74 @@
 # Changelog
 
+## [1.149.0](https://github.com/MetaCubeX/metacubexd/compare/v1.148.1...v1.149.0) (2024-09-14)
+
+
+### Features
+
+* reconnect ws when logs level changed ([#1003](https://github.com/MetaCubeX/metacubexd/issues/1003)) ([246a1ac](https://github.com/MetaCubeX/metacubexd/commit/246a1ac053ef56a1930d3ad2ae3bd0784e01c513))
+
+## [1.148.1](https://github.com/MetaCubeX/metacubexd/compare/v1.148.0...v1.148.1) (2024-09-12)
+
+
+### Bug Fixes
+
+* proxy group ipv6 test failed ([#996](https://github.com/MetaCubeX/metacubexd/issues/996)) ([c43b84b](https://github.com/MetaCubeX/metacubexd/commit/c43b84b1149939bf604e6798931f221fa191bc6b))
+
+## [1.148.0](https://github.com/MetaCubeX/metacubexd/compare/v1.147.0...v1.148.0) (2024-09-08)
+
+
+### Features
+
+* make persisted for ipv6 result ([#983](https://github.com/MetaCubeX/metacubexd/issues/983)) ([2078051](https://github.com/MetaCubeX/metacubexd/commit/2078051d7c8433ceda4240d41952cff32308990c))
+
+## [1.147.0](https://github.com/MetaCubeX/metacubexd/compare/v1.146.2...v1.147.0) (2024-08-29)
+
+
+### Features
+
+* optimize setup form ([#960](https://github.com/MetaCubeX/metacubexd/issues/960)) ([00ab6d4](https://github.com/MetaCubeX/metacubexd/commit/00ab6d46458c20d41b8b8080a8f57736d600d8d0))
+
+## [1.146.2](https://github.com/MetaCubeX/metacubexd/compare/v1.146.1...v1.146.2) (2024-08-26)
+
+
+### Bug Fixes
+
+* set latency for test failed ([#948](https://github.com/MetaCubeX/metacubexd/issues/948)) ([9189bf5](https://github.com/MetaCubeX/metacubexd/commit/9189bf5efb0676a053981e0ffd3b3c21f8332dcf))
+
+## [1.146.1](https://github.com/MetaCubeX/metacubexd/compare/v1.146.0...v1.146.1) (2024-08-22)
+
+
+### Bug Fixes
+
+* **config:** mode select options are missing ([21a3aa1](https://github.com/MetaCubeX/metacubexd/commit/21a3aa169ed3fe53f04a97c806ef20a11120fdea))
+
+## [1.146.0](https://github.com/MetaCubeX/metacubexd/compare/v1.145.0...v1.146.0) (2024-08-22)
+
+
+### Features
+
+* hidden api & remove domain unmaintained ([#939](https://github.com/MetaCubeX/metacubexd/issues/939)) ([bd65478](https://github.com/MetaCubeX/metacubexd/commit/bd6547873fcc64a500eadda78a1607be59e11a97))
+* Support dynamic acquisition of clash_mode ([#908](https://github.com/MetaCubeX/metacubexd/issues/908)) ([341a14a](https://github.com/MetaCubeX/metacubexd/commit/341a14a7bcdf6054fb3bb8f1d6bb87e78cc38db7))
+
+
+### Bug Fixes
+
+* improve readability for dlspeed preview ([#932](https://github.com/MetaCubeX/metacubexd/issues/932)) ([3727122](https://github.com/MetaCubeX/metacubexd/commit/3727122b95cde32ef15d7383fa8d9eee98dfd5f0))
+
+## [1.145.0](https://github.com/MetaCubeX/metacubexd/compare/v1.144.2...v1.145.0) (2024-08-20)
+
+
+### Features
+
+* preview dlspeed in proxies page ([#924](https://github.com/MetaCubeX/metacubexd/issues/924)) ([51a88b5](https://github.com/MetaCubeX/metacubexd/commit/51a88b506c1c4a5c41ff9a5c0e12a630f82a79fe))
+
+## [1.144.2](https://github.com/MetaCubeX/metacubexd/compare/v1.144.1...v1.144.2) (2024-08-11)
+
+
+### Bug Fixes
+
+* **overview:** traffic widget, truncate the texts to fix overflow ([dc9db7c](https://github.com/MetaCubeX/metacubexd/commit/dc9db7c60c5db056418a9af6e2d09184cf482a82))
+
 ## [1.144.1](https://github.com/MetaCubeX/metacubexd/compare/v1.144.0...v1.144.1) (2024-08-09)
 
 
