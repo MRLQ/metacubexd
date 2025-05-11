@@ -1,6 +1,7 @@
 import { makePersisted } from '@solid-primitives/storage'
 import {
   IconBrandSpeedtest,
+  IconChevronRight,
   IconReload,
   IconSettings,
 } from '@tabler/icons-solidjs'
@@ -9,25 +10,26 @@ import { twMerge } from 'tailwind-merge'
 import {
   Button,
   Collapse,
+  DocumentTitle,
   ProxiesSettingsModal,
   ProxyNodeCard,
   ProxyNodePreview,
   SubscriptionInfo,
 } from '~/components'
-import DocumentTitle from '~/components/DocumentTitle'
+import { ProxiesRenderWarpper } from '~/components/ProxiesRenderWrapper'
 import {
   filterProxiesByAvailability,
+  formatProxyType,
+  formatTimeFromNow,
   sortProxiesByOrderingType,
 } from '~/helpers'
 import { useI18n } from '~/i18n'
 import {
   endpoint,
-  formatTimeFromNow,
   hideUnAvailableProxies,
   iconHeight,
   iconMarginRight,
   proxiesOrderingType,
-  renderProxiesInTwoColumns,
   useConnections,
   useProxies,
 } from '~/signals'
@@ -91,7 +93,26 @@ export default () => {
     e.stopPropagation()
     void proxyGroupLatencyTest(groupName)
   }
-
+  /**
+   * transform an SVG into a data URI
+   * @see https://gist.github.com/jennyknuth/222825e315d45a738ed9d6e04c7a88d0
+   */
+  const encodeSvg = (svg: string) => {
+    return svg
+      .replace(
+        '<svg',
+        ~svg.indexOf('xmlns')
+          ? '<svg'
+          : '<svg xmlns="http://www.w3.org/2000/svg"',
+      )
+      .replace(/"/g, "'")
+      .replace(/%/g, '%25')
+      .replace(/#/g, '%23')
+      .replace(/\{/g, '%7B')
+      .replace(/\}/g, '%7D')
+      .replace(/</g, '%3C')
+      .replace(/>/g, '%3E')
+  }
   const onProxyProviderLatencyTestClick = (
     e: MouseEvent,
     providerName: string,
@@ -131,13 +152,13 @@ export default () => {
 
       <div class="flex h-full flex-col gap-2">
         <div class="flex items-center gap-2">
-          <div class="tabs-boxed tabs gap-2">
+          <div class="tabs tabs-sm gap-2 tabs-box">
             <For each={tabs()}>
               {(tab) => (
                 <button
                   class={twMerge(
-                    activeTab() === tab.type && 'tab-active',
-                    'tab-sm sm:tab-md tab gap-2 px-2',
+                    activeTab() === tab.type && 'bg-primary !text-neutral',
+                    'sm:tab-md tab gap-2 px-2',
                   )}
                   onClick={() => setActiveTab(tab.type)}
                 >
@@ -165,7 +186,7 @@ export default () => {
 
           <div class="ml-auto">
             <Button
-              class="btn-circle btn-primary btn-sm"
+              class="btn-circle btn-sm btn-primary"
               onClick={() => proxiesSettingsModalRef?.showModal()}
               icon={<IconSettings />}
             />
@@ -174,24 +195,19 @@ export default () => {
 
         <div class="flex-1 overflow-y-auto">
           <Show when={activeTab() === ActiveTab.proxies}>
-            <div
-              class={twMerge(
-                'grid grid-cols-1 place-items-start gap-2',
-                renderProxiesInTwoColumns()
-                  ? 'sm:grid-cols-2'
-                  : 'sm:grid-cols-1',
-              )}
-            >
+            <ProxiesRenderWarpper>
               <For each={renderProxies()}>
                 {(proxyGroup) => {
                   const sortedProxyNames = createMemo(() =>
-                    filterProxiesByAvailability(
-                      sortProxiesByOrderingType(
-                        proxyGroup.all ?? [],
-                        proxiesOrderingType(),
-                      ),
-                      hideUnAvailableProxies(),
-                    ),
+                    filterProxiesByAvailability({
+                      proxyNames: sortProxiesByOrderingType({
+                        proxyNames: proxyGroup.all ?? [],
+                        orderingType: proxiesOrderingType(),
+                        testUrl: proxyGroup.testUrl || null,
+                      }),
+                      enabled: hideUnAvailableProxies(),
+                      testUrl: proxyGroup.testUrl || null,
+                    }),
                   )
 
                   const title = (
@@ -199,16 +215,36 @@ export default () => {
                       <div class="flex items-center justify-between pr-8">
                         <div class="flex items-center">
                           <Show when={proxyGroup.icon}>
-                            <img
-                              src={proxyGroup.icon}
-                              style={{
-                                height: `${iconHeight()}px`,
-                                'margin-right': `${iconMarginRight()}px`,
-                              }}
-                            />
+                            <Show
+                              when={proxyGroup.icon!.startsWith(
+                                'data:image/svg+xml',
+                              )}
+                              fallback={
+                                <img
+                                  src={proxyGroup.icon}
+                                  style={{
+                                    height: `${iconHeight()}px`,
+                                    'margin-right': `${iconMarginRight()}px`,
+                                  }}
+                                />
+                              }
+                            >
+                              <div
+                                style={{
+                                  height: `${iconHeight()}px`,
+                                  width: `${iconHeight()}px`,
+                                  color:
+                                    'oklch(var(--p) / var(--tw-bg-opacity))',
+                                  'background-color': 'currentColor',
+                                  'margin-right': `${iconMarginRight()}px`,
+                                  'mask-image': `url("${encodeSvg(proxyGroup.icon!)}")`,
+                                  'mask-size': '100% 100%',
+                                }}
+                              />
+                            </Show>
                           </Show>
                           <span>{proxyGroup.name}</span>
-                          <div class="badge badge-sm ml-2">
+                          <div class="ml-2 badge badge-sm">
                             {proxyGroup.all?.length}
                           </div>
                         </div>
@@ -234,17 +270,19 @@ export default () => {
                       </div>
 
                       <div class="flex flex-wrap items-center justify-between gap-2">
-                        <div class="badge badge-primary badge-sm">
-                          <span class="font-bold">{proxyGroup.type}</span>
+                        <div class="badge badge-sm badge-primary">
+                          <span class="font-bold">
+                            {formatProxyType(proxyGroup.type)}
+                          </span>
                           <Show when={proxyGroup.now?.length > 0}>
+                            <IconChevronRight size={18} />
                             <span class="whitespace-nowrap">
-                              &nbsp;::&nbsp;
                               {proxyGroup.now}
                             </span>
                           </Show>
                         </div>
 
-                        <div class="badge badge-secondary badge-sm">
+                        <div class="badge badge-sm badge-secondary">
                           {byteSize(
                             speedGroupByName()[proxyGroup.name] ?? 0,
                           ).toString()}
@@ -256,6 +294,7 @@ export default () => {
                         <ProxyNodePreview
                           proxyNameList={sortedProxyNames()}
                           now={proxyGroup.now}
+                          testUrl={proxyGroup.testUrl || null}
                         />
                       </Show>
                     </div>
@@ -273,6 +312,8 @@ export default () => {
                         {(proxyName) => (
                           <ProxyNodeCard
                             proxyName={proxyName}
+                            testUrl={proxyGroup.testUrl || null}
+                            timeout={proxyGroup.timeout ?? null}
                             isSelected={proxyGroup.now === proxyName}
                             onClick={() =>
                               void selectProxyInGroup(proxyGroup, proxyName)
@@ -284,35 +325,36 @@ export default () => {
                   )
                 }}
               </For>
-            </div>
+            </ProxiesRenderWarpper>
           </Show>
 
           <Show when={activeTab() === ActiveTab.proxyProviders}>
-            <div
-              class={twMerge(
-                'grid grid-cols-1 place-items-start gap-2',
-                renderProxiesInTwoColumns()
-                  ? 'sm:grid-cols-2'
-                  : 'sm:grid-cols-1',
-              )}
-            >
+            <ProxiesRenderWarpper>
               <For each={proxyProviders()}>
                 {(proxyProvider) => {
                   const sortedProxyNames = createMemo(() =>
-                    sortProxiesByOrderingType(
-                      proxyProvider.proxies.map((i) => i.name) ?? [],
-                      proxiesOrderingType(),
-                    ),
+                    sortProxiesByOrderingType({
+                      orderingType: proxiesOrderingType(),
+                      proxyNames:
+                        proxyProvider.proxies.map((i) => i.name) ?? [],
+                      testUrl: proxyProvider.testUrl,
+                    }),
                   )
 
                   const title = (
                     <>
                       <div class="flex items-center justify-between pr-8">
-                        <div class="flex items-center gap-2">
-                          <span>{proxyProvider.name}</span>
+                        <div class="flex flex-wrap items-center gap-1">
+                          <span class="line-clamp-1 break-all">
+                            {proxyProvider.name}
+                          </span>
 
                           <div class="badge badge-sm">
                             {proxyProvider.proxies.length}
+                          </div>
+
+                          <div class="badge badge-sm">
+                            {proxyProvider.vehicleType}
                           </div>
                         </div>
 
@@ -363,14 +405,19 @@ export default () => {
                         subscriptionInfo={proxyProvider.subscriptionInfo}
                       />
 
-                      <div class="text-sm text-slate-500">
-                        {proxyProvider.vehicleType} :: {t('updated')}{' '}
-                        {formatTimeFromNow(proxyProvider.updatedAt)}
-                      </div>
+                      <div class="flex flex-col gap-2">
+                        <div class="text-sm text-slate-500">
+                          {t('updated')}{' '}
+                          {formatTimeFromNow(proxyProvider.updatedAt)}
+                        </div>
 
-                      <Show when={!collapsedMap()[proxyProvider.name]}>
-                        <ProxyNodePreview proxyNameList={sortedProxyNames()} />
-                      </Show>
+                        <Show when={!collapsedMap()[proxyProvider.name]}>
+                          <ProxyNodePreview
+                            proxyNameList={sortedProxyNames()}
+                            testUrl={proxyProvider.testUrl}
+                          />
+                        </Show>
+                      </div>
                     </>
                   )
 
@@ -383,13 +430,19 @@ export default () => {
                       }
                     >
                       <For each={sortedProxyNames()}>
-                        {(proxyName) => <ProxyNodeCard proxyName={proxyName} />}
+                        {(proxyName) => (
+                          <ProxyNodeCard
+                            proxyName={proxyName}
+                            testUrl={proxyProvider.testUrl}
+                            timeout={proxyProvider.timeout ?? null}
+                          />
+                        )}
                       </For>
                     </Collapse>
                   )
                 }}
               </For>
-            </div>
+            </ProxiesRenderWarpper>
           </Show>
         </div>
 

@@ -1,6 +1,6 @@
 import { createForm } from '@felte/solid'
 import { validator } from '@felte/validator-zod'
-import type { Accessor, Component, JSX, ParentComponent } from 'solid-js'
+import type { Accessor, JSX, ParentComponent } from 'solid-js'
 import { toast } from 'solid-toast'
 import { twMerge } from 'tailwind-merge'
 import { z } from 'zod'
@@ -9,8 +9,6 @@ import {
   fetchBackendVersionAPI,
   flushFakeIPDataAPI,
   flushingFakeIPData,
-  isBackendUpdateAvailableAPI,
-  isFrontendUpdateAvailableAPI,
   reloadConfigFileAPI,
   reloadingConfigFile,
   restartBackendAPI,
@@ -18,13 +16,8 @@ import {
   updateBackendConfigAPI,
   updateGEODatabasesAPI,
   updatingGEODatabases,
-  upgradeBackendAPI,
-  upgradeUIAPI,
-  upgradingBackend,
-  upgradingUI,
 } from '~/apis'
-import { Button, ConfigTitle } from '~/components'
-import DocumentTitle from '~/components/DocumentTitle'
+import { Button, ConfigTitle, DocumentTitle, Versions } from '~/components'
 import { LANG, ROUTES, themes } from '~/constants'
 import { Dict, locale, setLocale, useI18n } from '~/i18n'
 import {
@@ -57,12 +50,7 @@ const Input: ParentComponent<JSX.InputHTMLAttributes<HTMLInputElement>> = (
 ) => {
   const [local, others] = splitProps(props, ['class'])
 
-  return (
-    <input
-      class={twMerge('input input-bordered min-w-0', local.class)}
-      {...others}
-    />
-  )
+  return <input class={twMerge('input min-w-0', local.class)} {...others} />
 }
 
 const Select: ParentComponent<JSX.SelectHTMLAttributes<HTMLSelectElement>> = (
@@ -71,7 +59,7 @@ const Select: ParentComponent<JSX.SelectHTMLAttributes<HTMLSelectElement>> = (
   const [local, others] = splitProps(props, ['class'])
 
   return (
-    <select class={twMerge('select select-bordered', local.class)} {...others}>
+    <select class={twMerge('select', local.class)} {...others}>
       {children(() => others.children)()}
     </select>
   )
@@ -83,10 +71,8 @@ const Label: ParentComponent<JSX.LabelHTMLAttributes<HTMLLabelElement>> = (
   const [local, others] = splitProps(props, ['class'])
 
   return (
-    <label class={twMerge('label', local.class)} {...others}>
-      <span class="label-text truncate">
-        {children(() => others.children)()}
-      </span>
+    <label class={twMerge('label truncate', local.class)} {...others}>
+      {children(() => others.children)()}
     </label>
   )
 }
@@ -99,6 +85,7 @@ const dnsQueryFormSchema = z.object({
 const DNSQueryForm = () => {
   const [t] = useI18n()
   const request = useRequest()
+  const defaultDNSQueryTarget = 'google.com'
 
   const { form, isSubmitting } = createForm<z.infer<typeof dnsQueryFormSchema>>(
     {
@@ -106,7 +93,10 @@ const DNSQueryForm = () => {
       onSubmit: (values) =>
         request
           .get('dns/query', {
-            searchParams: { name: values.name, type: values.type },
+            searchParams: {
+              name: values.name || defaultDNSQueryTarget,
+              type: values.type,
+            },
           })
           .json<DNSQuery>()
           .then(({ Answer }) =>
@@ -125,7 +115,7 @@ const DNSQueryForm = () => {
           type="search"
           name="name"
           class="flex-1"
-          placeholder="google.com"
+          placeholder={defaultDNSQueryTarget}
           onInput={(e) => {
             if (!e.target.value) setDNSQueryResult([])
           }}
@@ -163,9 +153,9 @@ const configFormSchema = z.object({
   'mixed-port': z.number(),
 })
 
-const ConfigForm: ParentComponent<{ isSingBox: Accessor<boolean> }> = ({
-  isSingBox,
-}) => {
+const ConfigForm: ParentComponent<{
+  isSingBox: Accessor<boolean>
+}> = ({ isSingBox }) => {
   const [t] = useI18n()
 
   const portList = [
@@ -232,14 +222,16 @@ const ConfigForm: ParentComponent<{ isSingBox: Accessor<boolean> }> = ({
     }
   })
 
-  const modes = createMemo(
-    () => configsData()?.modes || ['rule', 'direct', 'global'],
-  )
+  const modes = createMemo(() => {
+    const cfg = configsData()
+
+    return cfg?.['mode-list'] || cfg?.modes || ['rule', 'direct', 'global']
+  })
 
   return (
     <div class="flex flex-col gap-4">
       <div class="grid grid-cols-3 gap-2">
-        <div class="form-control">
+        <fieldset class="fieldset">
           <Label for="enable-allow-lan">{t('allowLan')}</Label>
 
           <Toggle
@@ -253,25 +245,28 @@ const ConfigForm: ParentComponent<{ isSingBox: Accessor<boolean> }> = ({
               )
             }
           />
-        </div>
+        </fieldset>
 
-        <div class="form-control">
+        <fieldset class="fieldset">
           <Label for="mode">{t('runningMode')}</Label>
 
           <Select
             id="mode"
-            value={configsData()?.mode}
             onChange={(e) =>
               void updateBackendConfigAPI('mode', e.target.value, refetch)
             }
           >
             <For each={modes()}>
-              {(name) => <option value={name}>{t(name as keyof Dict)}</option>}
+              {(name) => (
+                <option selected={name === configsData()?.mode} value={name}>
+                  {t(name as keyof Dict) ?? name}
+                </option>
+              )}
             </For>
           </Select>
-        </div>
+        </fieldset>
 
-        <div class="form-control">
+        <fieldset class="fieldset">
           <Label for="interface-name">{t('outboundInterfaceName')}</Label>
 
           <Input
@@ -285,12 +280,12 @@ const ConfigForm: ParentComponent<{ isSingBox: Accessor<boolean> }> = ({
               )
             }
           />
-        </div>
+        </fieldset>
       </div>
 
       <Show when={!isSingBox()}>
         <div class="grid grid-cols-3 gap-2">
-          <div class="form-control">
+          <fieldset class="fieldset">
             <Label for="enable-tun-device">{t('enableTunDevice')}</Label>
 
             <Toggle
@@ -304,14 +299,13 @@ const ConfigForm: ParentComponent<{ isSingBox: Accessor<boolean> }> = ({
                 )
               }
             />
-          </div>
+          </fieldset>
 
-          <div class="form-control">
+          <fieldset class="fieldset">
             <Label for="tun-ip-stack">{t('tunModeStack')}</Label>
 
             <Select
               id="tun-ip-stack"
-              value={configsData()?.tun?.stack}
               onChange={(e) =>
                 void updateBackendConfigAPI(
                   'tun',
@@ -320,14 +314,20 @@ const ConfigForm: ParentComponent<{ isSingBox: Accessor<boolean> }> = ({
                 )
               }
             >
-              <option>Mixed</option>
-              <option>gVisor</option>
-              <option>System</option>
-              <option>LWIP</option>
+              <For each={['Mixed', 'gVisor', 'System', 'LWIP']}>
+                {(name) => (
+                  <option
+                    selected={configsData()?.tun?.stack === name}
+                    value={name}
+                  >
+                    {name}
+                  </option>
+                )}
+              </For>
             </Select>
-          </div>
+          </fieldset>
 
-          <div class="form-control">
+          <fieldset class="fieldset">
             <Label for="device-name">{t('tunDeviceName')}</Label>
 
             <Input
@@ -341,13 +341,13 @@ const ConfigForm: ParentComponent<{ isSingBox: Accessor<boolean> }> = ({
                 )
               }
             />
-          </div>
+          </fieldset>
         </div>
 
         <form class="grid grid-cols-3 gap-2 sm:grid-cols-5" use:form={form}>
           <For each={portList}>
             {(item) => (
-              <div class="form-control">
+              <fieldset class="fieldset">
                 <Label for={item.key}>{item.label()}</Label>
 
                 <Input
@@ -357,13 +357,13 @@ const ConfigForm: ParentComponent<{ isSingBox: Accessor<boolean> }> = ({
                   placeholder={item.label()}
                   onChange={item.onChange}
                 />
-              </div>
+              </fieldset>
             )}
           </For>
         </form>
       </Show>
 
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-2">
         <Button
           class="btn-primary"
           loading={reloadingConfigFile()}
@@ -396,22 +396,6 @@ const ConfigForm: ParentComponent<{ isSingBox: Accessor<boolean> }> = ({
           >
             {t('updateGEODatabases')}
           </Button>
-
-          <Button
-            class="btn-info"
-            loading={upgradingUI()}
-            onClick={upgradeUIAPI}
-          >
-            {t('upgradeUI')}
-          </Button>
-
-          <Button
-            class="btn-error"
-            loading={upgradingBackend()}
-            onClick={upgradeBackendAPI}
-          >
-            {t('upgradeCore')}
-          </Button>
         </Show>
       </div>
     </div>
@@ -429,6 +413,10 @@ const ConfigForXd = () => {
     {
       label: () => t('zh'),
       value: LANG.ZH,
+    },
+    {
+      label: () => t('ru'),
+      value: LANG.RU,
     },
   ]
 
@@ -459,7 +447,8 @@ const ConfigForXd = () => {
         </div>
 
         <div class="flex flex-col">
-          <div class="py-2 text-center text-lg font-semibold">&nbsp;</div>
+          <ConfigTitle>{endpoint()?.url}</ConfigTitle>
+
           <Button
             class="btn-info"
             onClick={() => {
@@ -488,13 +477,16 @@ const ConfigForXd = () => {
               <ConfigTitle>{t('favDayTheme')}</ConfigTitle>
 
               <Select
-                value={favDayTheme()}
                 onChange={(e) =>
                   setFavDayTheme(e.target.value as (typeof themes)[number])
                 }
               >
                 <For each={themes}>
-                  {(theme) => <option value={theme}>{theme}</option>}
+                  {(theme) => (
+                    <option selected={favDayTheme() === theme} value={theme}>
+                      {theme}
+                    </option>
+                  )}
                 </For>
               </Select>
             </div>
@@ -503,57 +495,21 @@ const ConfigForXd = () => {
               <ConfigTitle>{t('favNightTheme')}</ConfigTitle>
 
               <Select
-                value={favNightTheme()}
                 onChange={(e) =>
                   setFavNightTheme(e.target.value as (typeof themes)[number])
                 }
               >
                 <For each={themes}>
-                  {(theme) => <option value={theme}>{theme}</option>}
+                  {(theme) => (
+                    <option selected={favNightTheme() === theme} value={theme}>
+                      {theme}
+                    </option>
+                  )}
                 </For>
               </Select>
             </div>
           </div>
         </Show>
-      </div>
-    </div>
-  )
-}
-
-const Versions: Component<{
-  frontendVersion: string
-  backendVersion: Accessor<string>
-}> = ({ frontendVersion, backendVersion }) => {
-  const [isFrontendUpdateAvailable] = createResource(() =>
-    isFrontendUpdateAvailableAPI(frontendVersion),
-  )
-  const [isBackendUpdateAvailable] = createResource(() =>
-    isBackendUpdateAvailableAPI(backendVersion()),
-  )
-
-  const UpdateAvailableIndicator = () => (
-    <span class="absolute -right-1 -top-1 flex h-3 w-3">
-      <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-info opacity-75" />
-      <span class="inline-flex h-3 w-3 rounded-full bg-info" />
-    </span>
-  )
-
-  return (
-    <div class="grid grid-cols-2 gap-4">
-      <div class="relative">
-        <Show when={isFrontendUpdateAvailable()}>
-          <UpdateAvailableIndicator />
-        </Show>
-
-        <kbd class="kbd w-full">{import.meta.env.APP_VERSION}</kbd>
-      </div>
-
-      <div class="relative">
-        <Show when={isBackendUpdateAvailable()}>
-          <UpdateAvailableIndicator />
-        </Show>
-
-        <kbd class="kbd w-full">{backendVersion()}</kbd>
       </div>
     </div>
   )
