@@ -5,7 +5,8 @@ import { twMerge } from 'tailwind-merge'
 import { Button, DocumentTitle } from '~/components'
 import { formatTimeFromNow, useStringBooleanMap } from '~/helpers'
 import { useI18n } from '~/i18n'
-import { endpoint, useRules } from '~/signals'
+import { useWindowFocusRefetch } from '~/query/sync'
+import { useRules } from '~/signals'
 import { Rule, RuleProvider } from '~/types'
 
 enum ActiveTab {
@@ -14,14 +15,6 @@ enum ActiveTab {
 }
 
 export default () => {
-  const navigate = useNavigate()
-
-  if (!endpoint()) {
-    navigate('/setup', { replace: true })
-
-    return null
-  }
-
   const [t] = useI18n()
   const {
     rules,
@@ -30,6 +23,11 @@ export default () => {
     updateAllRuleProvider,
     updateRuleProviderByName,
   } = useRules()
+
+  onMount(updateRules)
+
+  // Enable window focus refetch for rules data
+  useWindowFocusRefetch(updateRules, { staleTime: 30000 })
 
   onMount(updateRules)
 
@@ -129,12 +127,12 @@ export default () => {
 
       <div class="flex h-full flex-col gap-2">
         <div class="flex w-full flex-wrap items-center gap-2">
-          <div class="tabs tabs-sm gap-2 tabs-box">
+          <div class="tabs-box tabs gap-2 tabs-sm">
             <For each={tabs()}>
               {(tab) => (
                 <button
                   class={twMerge(
-                    activeTab() === tab.type && 'bg-primary !text-neutral',
+                    activeTab() === tab.type && 'bg-primary text-neutral!',
                     'tab gap-2 px-2',
                   )}
                   onClick={() => setActiveTab(tab.type)}
@@ -197,7 +195,7 @@ export default () => {
                       transform: `translateY(${virtualizerItem.start}px)`,
                     }}
                   >
-                    <div class="card-border card bg-base-200 p-4 card-sm">
+                    <div class="card bg-base-200 p-4 card-sm card-border">
                       <div class="flex items-center gap-2">
                         <span class="break-all">{rule.payload}</span>
 
@@ -239,7 +237,7 @@ export default () => {
                       transform: `translateY(${virtualizerItem.start}px)`,
                     }}
                   >
-                    <div class="card-border card bg-base-200 p-4 card-sm">
+                    <div class="card bg-base-200 p-4 card-sm card-border">
                       <div class="flex items-center gap-2 pr-8">
                         <span class="break-all">{ruleProvider.name}</span>
 

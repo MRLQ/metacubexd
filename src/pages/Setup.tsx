@@ -6,6 +6,7 @@ import { v4 as uuid } from 'uuid'
 import { z } from 'zod'
 import { checkEndpointAPI } from '~/apis'
 import { Button, DocumentTitle } from '~/components'
+import { FALLBACK_BACKEND_URL } from '~/constants'
 import { transformEndpointURL } from '~/helpers'
 import { useI18n } from '~/i18n'
 import {
@@ -16,7 +17,7 @@ import {
 } from '~/signals'
 
 const schema = z.object({
-  url: z.string().min(1),
+  'metacubexd-endpoint-url': z.string().min(1),
   secret: z.string(),
 })
 
@@ -40,7 +41,9 @@ export default () => {
     onSetupSuccess(id)
   }
 
-  const onSubmit = async ({ url, secret }: { url: string; secret: string }) => {
+  const onSubmit = async (values: z.infer<typeof schema>) => {
+    const url = values['metacubexd-endpoint-url']
+    const secret = values.secret
     const transformedURL = transformEndpointURL(url)
 
     if (!(await checkEndpointAPI(transformedURL, secret))) return
@@ -97,7 +100,7 @@ export default () => {
 
     if (query.has('hostname')) {
       await onSubmit({
-        url: `${query.get('http') ? 'http:' : query.get('https') ? 'https:' : window.location.protocol}//${query.get('hostname')}${
+        'metacubexd-endpoint-url': `${query.get('http') ? 'http:' : query.get('https') ? 'https:' : window.location.protocol}//${query.get('hostname')}${
           query.get('port') ? `:${query.get('port')}` : ''
         }`,
         secret: query.get('secret') ?? '',
@@ -107,8 +110,11 @@ export default () => {
         we only try auto login when there is nothing in endpoint list
         or user who is using default config won't be able to switch to another endpoint ever
       */
+      const defaultBackendURL =
+        window.__METACUBEXD_CONFIG__?.defaultBackendURL || FALLBACK_BACKEND_URL
+
       await onSubmit({
-        url: 'http://127.0.0.1:9090',
+        'metacubexd-endpoint-url': defaultBackendURL,
         secret: '',
       })
     }
@@ -128,21 +134,48 @@ export default () => {
 
               <input
                 id="url"
-                name="url"
+                name="metacubexd-endpoint-url"
                 type="url"
                 class="input w-full"
                 placeholder="http(s)://{hostname}:{port}"
                 list="defaultEndpoints"
+                autocomplete="on"
               />
 
               <datalist id="defaultEndpoints">
-                <option value="http://127.0.0.1:9090" />
+                <option value={FALLBACK_BACKEND_URL} />
 
-                <Show when={window.location.origin !== 'http://127.0.0.1:9090'}>
+                <Show
+                  when={
+                    window.__METACUBEXD_CONFIG__?.defaultBackendURL &&
+                    window.__METACUBEXD_CONFIG__?.defaultBackendURL !==
+                      FALLBACK_BACKEND_URL
+                  }
+                >
+                  <option
+                    value={window.__METACUBEXD_CONFIG__?.defaultBackendURL}
+                  />
+                </Show>
+
+                <Show when={window.location.origin !== FALLBACK_BACKEND_URL}>
                   <option value={window.location.origin} />
                 </Show>
+
+                <For each={endpointList()}>
+                  {({ url }) => <option value={url} />}
+                </For>
               </datalist>
             </fieldset>
+
+            {/* Hidden username field to help password managers recognize the form */}
+            <input
+              type="text"
+              name="username"
+              autocomplete="username"
+              class="hidden"
+              aria-hidden="true"
+              tabIndex={-1}
+            />
 
             <fieldset class="fieldset">
               <label class="label" for="secret">
@@ -155,6 +188,7 @@ export default () => {
                 type="password"
                 class="input w-full"
                 placeholder="secret"
+                autocomplete="current-password"
               />
             </fieldset>
 

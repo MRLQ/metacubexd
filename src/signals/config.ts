@@ -3,14 +3,17 @@ import {
   CONNECTIONS_TABLE_INITIAL_COLUMN_ORDER,
   CONNECTIONS_TABLE_INITIAL_COLUMN_VISIBILITY,
   DEFAULT_LOGS_TABLE_MAX_ROWS,
+  FONT_FAMILY,
   LATENCY_QUALITY_MAP_HTTP,
   LATENCY_QUALITY_MAP_HTTPS,
   LOG_LEVEL,
+  PROXIES_DISPLAY_MODE,
   PROXIES_ORDERING_TYPE,
   PROXIES_PREVIEW_TYPE,
   TAILWINDCSS_SIZE,
   themes,
 } from '~/constants'
+import { curThemeDefault, setCurTheme } from '~/signals/theme'
 import {
   ConnectionsTableColumnOrder,
   ConnectionsTableColumnVisibility,
@@ -28,6 +31,13 @@ export const proxiesOrderingTypeDefault = PROXIES_ORDERING_TYPE.NATURAL
 export const [proxiesOrderingType, setProxiesOrderingType] = makePersisted(
   createSignal(proxiesOrderingTypeDefault),
   { name: 'proxiesOrderingType', storage: localStorage },
+)
+
+export const proxiesDisplayModeDefault = PROXIES_DISPLAY_MODE.CARD
+
+export const [proxiesDisplayMode, setProxiesDisplayMode] = makePersisted(
+  createSignal(proxiesDisplayModeDefault),
+  { name: 'proxiesDisplayMode', storage: localStorage },
 )
 
 export const renderProxiesInTwoColumnsDefault = true
@@ -60,14 +70,18 @@ export const [autoCloseConns, setAutoCloseConns] = makePersisted(
   { name: 'autoCloseConns', storage: localStorage },
 )
 
-export const useTwemojiDefault = false
+export const autoSwitchEndpointDefault = false
 
-export const [useTwemoji, setUseTwemoji] = makePersisted(
-  createSignal(useTwemojiDefault),
-  {
-    name: 'useTwemoji',
-    storage: localStorage,
-  },
+export const [autoSwitchEndpoint, setAutoSwitchEndpoint] = makePersisted(
+  createSignal(autoSwitchEndpointDefault),
+  { name: 'autoSwitchEndpoint', storage: localStorage },
+)
+
+export const fontFamilyDefault = FONT_FAMILY.SystemUI
+
+export const [fontFamily, setFontFamily] = makePersisted(
+  createSignal(fontFamilyDefault),
+  { name: 'fontFamily', storage: localStorage },
 )
 
 export const autoSwitchThemeDefault = false
@@ -216,3 +230,25 @@ export const [iconMarginRight, setIconMarginRight] = makePersisted(
   createSignal(iconMarginRightDefault),
   { name: 'iconMarginRight', storage: localStorage },
 )
+
+export const resetProxiesSettings = () => {
+  setProxiesPreviewType(proxiesPreviewTypeDefault)
+  setProxiesOrderingType(proxiesOrderingTypeDefault)
+  setProxiesDisplayMode(proxiesDisplayModeDefault)
+  setRenderProxiesInTwoColumns(renderProxiesInTwoColumnsDefault)
+  setHideUnAvailableProxies(hideUnAvailableProxiesDefault)
+  setUrlForLatencyTest(urlForLatencyTestDefault)
+  setAutoCloseConns(autoCloseConnsDefault)
+  setLatencyTestTimeoutDuration(latencyTestTimeoutDurationDefault)
+  setIconHeight(iconHeightDefault)
+  setIconMarginRight(iconMarginRightDefault)
+}
+
+export const resetXdConfig = () => {
+  setAutoSwitchTheme(autoSwitchThemeDefault)
+  setAutoSwitchEndpoint(autoSwitchEndpointDefault)
+  setFontFamily(fontFamilyDefault)
+  setFavDayTheme(favDayThemeDefault)
+  setFavNightTheme(favNightThemeDefault)
+  setCurTheme(curThemeDefault)
+}

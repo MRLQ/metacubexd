@@ -1,6 +1,3 @@
-import { ApexOptions } from 'apexcharts'
-import byteSize from 'byte-size'
-
 export const themes = [
   'acid',
   'aqua',
@@ -36,6 +33,8 @@ export const themes = [
   'wireframe',
 ] as const
 
+export const FALLBACK_BACKEND_URL = 'http://127.0.0.1:9090'
+
 export enum ROUTES {
   Overview = '/overview',
   Proxies = '/proxies',
@@ -47,35 +46,6 @@ export enum ROUTES {
 }
 
 export const CHART_MAX_XAXIS = 10
-
-export const DEFAULT_CHART_OPTIONS: ApexOptions = {
-  title: { align: 'center', style: { color: 'gray', fontSize: '16px' } },
-  chart: {
-    toolbar: { show: false },
-    zoom: { enabled: false },
-  },
-  noData: { text: 'Loading...' },
-  legend: {
-    showForSingleSeries: true,
-    fontSize: '16px',
-    labels: { colors: 'gray' },
-    itemMargin: { horizontal: 32 },
-  },
-  grid: { yaxis: { lines: { show: false } } },
-  stroke: { curve: 'smooth' },
-  tooltip: { enabled: false },
-  xaxis: {
-    range: CHART_MAX_XAXIS,
-    labels: { show: false },
-    axisTicks: { show: false },
-  },
-  yaxis: {
-    labels: {
-      style: { colors: 'gray', fontSize: '13px' },
-      formatter: (val) => byteSize(val).toString(),
-    },
-  },
-}
 
 export enum LATENCY_QUALITY_MAP_HTTP {
   NOT_CONNECTED = 0,
@@ -102,6 +72,11 @@ export enum PROXIES_ORDERING_TYPE {
   LATENCY_DESC = 'orderLatency_desc',
   NAME_ASC = 'orderName_asc',
   NAME_DESC = 'orderName_desc',
+}
+
+export enum PROXIES_DISPLAY_MODE {
+  CARD = 'cardMode',
+  LIST = 'listMode',
 }
 
 export enum LANG {
@@ -164,6 +139,11 @@ export enum LOG_LEVEL {
   Warning = 'warning',
   Debug = 'debug',
   Silent = 'silent',
+}
+
+export enum FONT_FAMILY {
+  FiraSans = 'font-fira-sans',
+  SystemUI = 'font-system-ui',
 }
 
 export const LOGS_TABLE_MAX_ROWS_LIST = [200, 300, 500, 800, 1000]

@@ -1,7 +1,11 @@
 import { IconGlobe } from '@tabler/icons-solidjs'
 import type { Component } from 'solid-js'
 import { ConfigTitle, Modal } from '~/components'
-import { PROXIES_ORDERING_TYPE, PROXIES_PREVIEW_TYPE } from '~/constants'
+import {
+  PROXIES_DISPLAY_MODE,
+  PROXIES_ORDERING_TYPE,
+  PROXIES_PREVIEW_TYPE,
+} from '~/constants'
 import { useI18n } from '~/i18n'
 import {
   autoCloseConns,
@@ -9,14 +13,17 @@ import {
   iconHeight,
   iconMarginRight,
   latencyTestTimeoutDuration,
+  proxiesDisplayMode,
   proxiesOrderingType,
   proxiesPreviewType,
   renderProxiesInTwoColumns,
+  resetProxiesSettings,
   setAutoCloseConns,
   setHideUnAvailableProxies,
   setIconHeight,
   setIconMarginRight,
   setLatencyTestTimeoutDuration,
+  setProxiesDisplayMode,
   setProxiesOrderingType,
   setProxiesPreviewType,
   setRenderProxiesInTwoColumns,
@@ -53,7 +60,7 @@ export const ProxiesSettingsModal: Component<{
           <ConfigTitle withDivider>{t('urlForLatencyTest')}</ConfigTitle>
 
           <input
-            class="input"
+            class="input w-full"
             value={urlForLatencyTest()}
             onChange={(e) => setUrlForLatencyTest(e.target.value)}
           />
@@ -66,7 +73,7 @@ export const ProxiesSettingsModal: Component<{
 
           <input
             type="number"
-            class="input"
+            class="input w-full"
             value={latencyTestTimeoutDuration()}
             onChange={(e) =>
               setLatencyTestTimeoutDuration(Number(e.target.value))
@@ -78,7 +85,7 @@ export const ProxiesSettingsModal: Component<{
           <ConfigTitle withDivider>{t('proxiesSorting')}</ConfigTitle>
 
           <select
-            class="select"
+            class="select w-full"
             value={proxiesOrderingType()}
             onChange={(e) =>
               setProxiesOrderingType(e.target.value as PROXIES_ORDERING_TYPE)
@@ -121,10 +128,26 @@ export const ProxiesSettingsModal: Component<{
         </div>
 
         <div>
+          <ConfigTitle withDivider>{t('proxiesDisplayMode')}</ConfigTitle>
+
+          <select
+            class="select w-full"
+            value={proxiesDisplayMode()}
+            onChange={(e) =>
+              setProxiesDisplayMode(e.target.value as PROXIES_DISPLAY_MODE)
+            }
+          >
+            <For each={Object.values(PROXIES_DISPLAY_MODE)}>
+              {(value) => <option value={value}>{t(value)}</option>}
+            </For>
+          </select>
+        </div>
+
+        <div>
           <ConfigTitle withDivider>{t('proxiesPreviewType')}</ConfigTitle>
 
           <select
-            class="select"
+            class="select w-full"
             value={proxiesPreviewType()}
             onChange={(e) =>
               setProxiesPreviewType(e.target.value as PROXIES_PREVIEW_TYPE)
@@ -141,7 +164,7 @@ export const ProxiesSettingsModal: Component<{
 
           <input
             type="number"
-            class="input"
+            class="input w-full"
             value={iconHeight()}
             onChange={(e) => setIconHeight(Number(e.target.value))}
           />
@@ -150,10 +173,19 @@ export const ProxiesSettingsModal: Component<{
 
           <input
             type="number"
-            class="input"
+            class="input w-full"
             value={iconMarginRight()}
             onChange={(e) => setIconMarginRight(Number(e.target.value))}
           />
+        </div>
+
+        <div>
+          <button
+            class="btn w-full btn-error"
+            onClick={() => resetProxiesSettings()}
+          >
+            {t('resetSettings')}
+          </button>
         </div>
       </div>
     </Modal>

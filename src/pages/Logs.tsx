@@ -3,49 +3,31 @@ import {
   IconPlayerPause,
   IconPlayerPlay,
   IconSettings,
-  IconSortAscending,
-  IconSortDescending,
 } from '@tabler/icons-solidjs'
-import { rankItem } from '@tanstack/match-sorter-utils'
 import {
   ColumnDef,
-  FilterFn,
+  GroupingState,
   SortingState,
   createSolidTable,
-  flexRender,
   getCoreRowModel,
+  getExpandedRowModel,
   getFilteredRowModel,
+  getGroupedRowModel,
   getSortedRowModel,
 } from '@tanstack/solid-table'
-import { twMerge } from 'tailwind-merge'
-import { Button, DocumentTitle, LogsSettingsModal } from '~/components'
+import {
+  DataTable,
+  Button,
+  DocumentTitle,
+  LogsSettingsModal,
+} from '~/components'
 import { LOG_LEVEL } from '~/constants'
+import { fuzzyFilter } from '~/helpers'
 import { useI18n } from '~/i18n'
-import { endpoint, logsTableSize, tableSizeClassName, useLogs } from '~/signals'
+import { logsTableSize, useLogs } from '~/signals'
 import { LogWithSeq } from '~/types'
 
-const fuzzyFilter: FilterFn<LogWithSeq> = (row, columnId, value, addMeta) => {
-  // Rank the item
-  const itemRank = rankItem(row.getValue(columnId), value)
-
-  // Store the itemRank info
-  addMeta({
-    itemRank,
-  })
-
-  // Return if the item should be filtered in/out
-  return itemRank.passed
-}
-
 export default () => {
-  const navigate = useNavigate()
-
-  if (!endpoint()) {
-    navigate('/setup', { replace: true })
-
-    return null
-  }
-
   let logsSettingsModalRef: HTMLDialogElement | undefined
   const [t] = useI18n()
   const [globalFilter, setGlobalFilter] = createSignal('')
@@ -56,13 +38,25 @@ export default () => {
     storage: localStorage,
   })
 
+  const [grouping, setGrouping] = createSignal<GroupingState>([])
+
+  // Extract type from payload, e.g. "[dns] xxx" -> "dns"
+  const extractType = (payload: string) => {
+    const match = payload.match(/^\[([^\]]+)\]/)
+
+    return match ? match[1] : ''
+  }
+
   const columns: ColumnDef<LogWithSeq>[] = [
     {
+      id: 'seq',
       header: t('sequence'),
       accessorFn: (row) => row.seq,
+      enableGrouping: false,
     },
     {
-      header: t('type'),
+      id: 'level',
+      header: t('level'),
       accessorFn: (row) => row.type,
       cell: ({ row }) => {
         const type = row.original.type as LOG_LEVEL
@@ -88,8 +82,20 @@ export default () => {
       },
     },
     {
+      id: 'type',
+      header: t('type'),
+      accessorFn: (row) => extractType(row.payload),
+      cell: ({ row }) => {
+        const logType = extractType(row.original.payload)
+
+        return logType ? <span class="opacity-70">{logType}</span> : null
+      },
+    },
+    {
+      id: 'payload',
       header: t('payload'),
       accessorFn: (row) => row.payload,
+      enableGrouping: false,
     },
   ]
 
@@ -104,6 +110,9 @@ export default () => {
       get sorting() {
         return sorting()
       },
+      get grouping() {
+        return grouping()
+      },
     },
     get data() {
       return logs()
@@ -112,9 +121,12 @@ export default () => {
     columns,
     onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
+    onGroupingChange: setGrouping,
     globalFilterFn: fuzzyFilter,
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getGroupedRowModel: getGroupedRowModel(),
     getCoreRowModel: getCoreRowModel(),
   })
 
@@ -126,7 +138,7 @@ export default () => {
         <div class="join w-full">
           <input
             type="search"
-            class="input input-sm join-item flex-1 flex-shrink-0 input-primary"
+            class="input input-sm join-item flex-1 shrink-0 input-primary"
             placeholder={t('search')}
             onInput={(e) => setGlobalFilter(e.target.value)}
           />
@@ -144,75 +156,13 @@ export default () => {
         </div>
 
         <div class="overflow-x-auto rounded-md bg-base-300 whitespace-nowrap">
-          <table
-            class={twMerge(
-              tableSizeClassName(logsTableSize()),
-              'table relative rounded-none',
-            )}
-          >
-            <thead class="sticky top-0 z-10">
-              <Index each={table.getHeaderGroups()}>
-                {(keyedHeaderGroup) => {
-                  const headerGroup = keyedHeaderGroup()
-
-                  return (
-                    <tr>
-                      <Index each={headerGroup.headers}>
-                        {(keyedHeader) => {
-                          const header = keyedHeader()
-
-                          return (
-                            <th class="bg-base-200">
-                              <div class="flex items-center">
-                                <div
-                                  class={twMerge(
-                                    header.column.getCanSort() &&
-                                      'cursor-pointer select-none',
-                                    'flex-1',
-                                  )}
-                                  onClick={header.column.getToggleSortingHandler()}
-                                >
-                                  {flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext(),
-                                  )}
-                                </div>
-
-                                {{
-                                  asc: <IconSortAscending />,
-                                  desc: <IconSortDescending />,
-                                }[header.column.getIsSorted() as string] ??
-                                  null}
-                              </div>
-                            </th>
-                          )
-                        }}
-                      </Index>
-                    </tr>
-                  )
-                }}
-              </Index>
-            </thead>
-
-            <tbody>
-              <For each={table.getRowModel().rows}>
-                {(row) => (
-                  <tr class="hover:!bg-primary hover:text-primary-content">
-                    <For each={row.getVisibleCells()}>
-                      {(cell) => (
-                        <td class="py-2">
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </td>
-                      )}
-                    </For>
-                  </tr>
-                )}
-              </For>
-            </tbody>
-          </table>
+          <DataTable
+            table={table}
+            size={logsTableSize()}
+            stickyHeader
+            rowHover
+            cellClass="py-2"
+          />
         </div>
 
         <LogsSettingsModal ref={(el) => (logsSettingsModalRef = el)} />

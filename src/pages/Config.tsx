@@ -5,33 +5,38 @@ import { toast } from 'solid-toast'
 import { twMerge } from 'tailwind-merge'
 import { z } from 'zod'
 import {
-  fetchBackendConfigAPI,
-  fetchBackendVersionAPI,
   flushFakeIPDataAPI,
   flushingFakeIPData,
   reloadConfigFileAPI,
   reloadingConfigFile,
   restartBackendAPI,
   restartingBackend,
-  updateBackendConfigAPI,
   updateGEODatabasesAPI,
   updatingGEODatabases,
 } from '~/apis'
 import { Button, ConfigTitle, DocumentTitle, Versions } from '~/components'
-import { LANG, ROUTES, themes } from '~/constants'
+import { FONT_FAMILY, LANG, ROUTES, themes } from '~/constants'
 import { Dict, locale, setLocale, useI18n } from '~/i18n'
 import {
+  useBackendConfig,
+  useBackendVersion,
+  useUpdateBackendConfig,
+} from '~/query/hooks'
+import {
+  autoSwitchEndpoint,
   autoSwitchTheme,
   endpoint,
   favDayTheme,
   favNightTheme,
+  fontFamily,
+  resetXdConfig,
+  setAutoSwitchEndpoint,
   setAutoSwitchTheme,
   setFavDayTheme,
   setFavNightTheme,
+  setFontFamily,
   setSelectedEndpoint,
-  setUseTwemoji,
   useRequest,
-  useTwemoji,
 } from '~/signals'
 import type { DNSQuery } from '~/types'
 
@@ -110,32 +115,45 @@ const DNSQueryForm = () => {
 
   return (
     <div class="flex flex-col">
-      <form use:form={form} class="flex gap-2 sm:flex-row">
+      <form use:form={form} class="join">
         <Input
           type="search"
           name="name"
-          class="flex-1"
+          class="join-item w-full"
           placeholder={defaultDNSQueryTarget}
           onInput={(e) => {
             if (!e.target.value) setDNSQueryResult([])
           }}
         />
 
-        <div class="flex items-center gap-2">
-          <Select name="type">
-            <option>A</option>
-            <option>AAAA</option>
-            <option>MX</option>
-          </Select>
+        <Select name="type" class="join-item max-w-max">
+          <option>A</option>
+          <option>AAAA</option>
+          <option>CNAME</option>
+          <option>TXT</option>
+          <option>MX</option>
+          <option>SRV</option>
+          <option>HTTPS</option>
+          <option>NS</option>
+          <option>DNSKEY</option>
+          <option>DS</option>
+          <option>SIG</option>
+          <option>SOA</option>
+          <option>RRSIG</option>
+          <option>RP</option>
+        </Select>
 
-          <Button type="submit" class="btn-primary" loading={isSubmitting()}>
-            {t('dnsQuery')}
-          </Button>
-        </div>
+        <Button
+          type="submit"
+          class="join-item max-w-max btn-primary"
+          loading={isSubmitting()}
+        >
+          {t('dnsQuery')}
+        </Button>
       </form>
 
       <Show when={DNSQueryResult().length > 0}>
-        <div class="flex flex-col p-4">
+        <div class="flex flex-col overflow-auto p-4">
           <For each={DNSQueryResult()}>
             {(item) => <div class="py-2">{item}</div>}
           </For>
@@ -157,53 +175,46 @@ const ConfigForm: ParentComponent<{
   isSingBox: Accessor<boolean>
 }> = ({ isSingBox }) => {
   const [t] = useI18n()
+  const configQuery = useBackendConfig()
+  const updateConfigMutation = useUpdateBackendConfig()
+
+  const updateConfig = (
+    key: Parameters<typeof updateConfigMutation.mutate>[0]['key'],
+    value: Parameters<typeof updateConfigMutation.mutate>[0]['value'],
+  ) => {
+    updateConfigMutation.mutate({ key, value })
+  }
 
   const portList = [
     {
       label: () => t('port', { name: 'Mixed' }),
-      key: 'mixed-port',
+      key: 'mixed-port' as const,
       onChange: (e: Event & { target: HTMLInputElement }) =>
-        void updateBackendConfigAPI(
-          'mixed-port',
-          Number(e.target.value),
-          refetch,
-        ),
+        updateConfig('mixed-port', Number(e.target.value)),
     },
     {
       label: () => t('port', { name: 'HTTP' }),
-      key: 'port',
+      key: 'port' as const,
       onChange: (e: Event & { target: HTMLInputElement }) =>
-        void updateBackendConfigAPI('port', Number(e.target.value), refetch),
+        updateConfig('port', Number(e.target.value)),
     },
     {
       label: () => t('port', { name: 'Socks' }),
-      key: 'socks-port',
+      key: 'socks-port' as const,
       onChange: (e: Event & { target: HTMLInputElement }) =>
-        void updateBackendConfigAPI(
-          'socks-port',
-          Number(e.target.value),
-          refetch,
-        ),
+        updateConfig('socks-port', Number(e.target.value)),
     },
     {
       label: () => t('port', { name: 'Redir' }),
-      key: 'redir-port',
+      key: 'redir-port' as const,
       onChange: (e: Event & { target: HTMLInputElement }) =>
-        void updateBackendConfigAPI(
-          'redir-port',
-          Number(e.target.value),
-          refetch,
-        ),
+        updateConfig('redir-port', Number(e.target.value)),
     },
     {
       label: () => t('port', { name: 'TProxy' }),
-      key: 'tproxy-port',
+      key: 'tproxy-port' as const,
       onChange: (e: Event & { target: HTMLInputElement }) =>
-        void updateBackendConfigAPI(
-          'tproxy-port',
-          Number(e.target.value),
-          refetch,
-        ),
+        updateConfig('tproxy-port', Number(e.target.value)),
     },
   ]
 
@@ -211,10 +222,8 @@ const ConfigForm: ParentComponent<{
     z.infer<typeof configFormSchema>
   >({ extend: validator({ schema: configFormSchema }) })
 
-  const [configsData, { refetch }] = createResource(fetchBackendConfigAPI)
-
   createEffect(() => {
-    const configs = configsData()
+    const configs = configQuery.data
 
     if (configs) {
       setInitialValues(configs)
@@ -223,7 +232,7 @@ const ConfigForm: ParentComponent<{
   })
 
   const modes = createMemo(() => {
-    const cfg = configsData()
+    const cfg = configQuery.data
 
     return cfg?.['mode-list'] || cfg?.modes || ['rule', 'direct', 'global']
   })
@@ -236,14 +245,8 @@ const ConfigForm: ParentComponent<{
 
           <Toggle
             id="enable-allow-lan"
-            checked={configsData()?.['allow-lan']}
-            onChange={(e) =>
-              void updateBackendConfigAPI(
-                'allow-lan',
-                e.target.checked,
-                refetch,
-              )
-            }
+            checked={configQuery.data?.['allow-lan']}
+            onChange={(e) => updateConfig('allow-lan', e.target.checked)}
           />
         </fieldset>
 
@@ -252,13 +255,11 @@ const ConfigForm: ParentComponent<{
 
           <Select
             id="mode"
-            onChange={(e) =>
-              void updateBackendConfigAPI('mode', e.target.value, refetch)
-            }
+            onChange={(e) => updateConfig('mode', e.target.value)}
           >
             <For each={modes()}>
               {(name) => (
-                <option selected={name === configsData()?.mode} value={name}>
+                <option selected={name === configQuery.data?.mode} value={name}>
                   {t(name as keyof Dict) ?? name}
                 </option>
               )}
@@ -271,14 +272,8 @@ const ConfigForm: ParentComponent<{
 
           <Input
             id="interface-name"
-            value={configsData()?.['interface-name']}
-            onChange={(e) =>
-              void updateBackendConfigAPI(
-                'interface-name',
-                e.target.value,
-                refetch,
-              )
-            }
+            value={configQuery.data?.['interface-name']}
+            onChange={(e) => updateConfig('interface-name', e.target.value)}
           />
         </fieldset>
       </div>
@@ -290,13 +285,9 @@ const ConfigForm: ParentComponent<{
 
             <Toggle
               id="enable-tun-device"
-              checked={configsData()?.tun?.enable}
+              checked={configQuery.data?.tun?.enable}
               onChange={(e) =>
-                void updateBackendConfigAPI(
-                  'tun',
-                  { enable: e.target.checked },
-                  refetch,
-                )
+                updateConfig('tun', { enable: e.target.checked })
               }
             />
           </fieldset>
@@ -306,18 +297,12 @@ const ConfigForm: ParentComponent<{
 
             <Select
               id="tun-ip-stack"
-              onChange={(e) =>
-                void updateBackendConfigAPI(
-                  'tun',
-                  { stack: e.target.value },
-                  refetch,
-                )
-              }
+              onChange={(e) => updateConfig('tun', { stack: e.target.value })}
             >
               <For each={['Mixed', 'gVisor', 'System', 'LWIP']}>
                 {(name) => (
                   <option
-                    selected={configsData()?.tun?.stack === name}
+                    selected={configQuery.data?.tun?.stack === name}
                     value={name}
                   >
                     {name}
@@ -332,14 +317,8 @@ const ConfigForm: ParentComponent<{
 
             <Input
               id="device-name"
-              value={configsData()?.tun?.device}
-              onChange={(e) =>
-                void updateBackendConfigAPI(
-                  'tun',
-                  { device: e.target.value },
-                  refetch,
-                )
-              }
+              value={configQuery.data?.tun?.device}
+              onChange={(e) => updateConfig('tun', { device: e.target.value })}
             />
           </fieldset>
         </div>
@@ -407,39 +386,63 @@ const ConfigForXd = () => {
   const navigate = useNavigate()
   const languages = [
     {
-      label: () => t('en'),
+      label: 'English',
       value: LANG.EN,
     },
     {
-      label: () => t('zh'),
+      label: '简体中文',
       value: LANG.ZH,
     },
     {
-      label: () => t('ru'),
+      label: 'Русский',
       value: LANG.RU,
+    },
+  ]
+  const fonts = [
+    {
+      label: 'SystemUI',
+      value: FONT_FAMILY.SystemUI,
+    },
+    {
+      label: 'FiraSans',
+      value: FONT_FAMILY.FiraSans,
     },
   ]
 
   return (
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div class="flex flex-col gap-2">
-        <div class="flex flex-col items-center">
-          <ConfigTitle>{t('useTwemoji')}</ConfigTitle>
+        <div class="flex flex-col">
+          <ConfigTitle>{t('switchFont')}</ConfigTitle>
 
-          <Toggle
-            checked={useTwemoji()}
-            onChange={(e) => setUseTwemoji(e.target.checked)}
-          />
+          <Select
+            class="w-full"
+            onChange={(e) => setFontFamily(e.target.value as FONT_FAMILY)}
+          >
+            <For each={fonts}>
+              {(font) => (
+                <option
+                  selected={fontFamily() === font.value}
+                  value={font.value}
+                >
+                  {font.label}
+                </option>
+              )}
+            </For>
+          </Select>
         </div>
 
         <div class="flex flex-col">
           <ConfigTitle>{t('switchLanguage')}</ConfigTitle>
 
-          <Select onChange={(e) => setLocale(e.target.value as LANG)}>
+          <Select
+            class="w-full"
+            onChange={(e) => setLocale(e.target.value as LANG)}
+          >
             <For each={languages}>
               {(lang) => (
                 <option selected={locale() === lang.value} value={lang.value}>
-                  {lang.label()}
+                  {lang.label}
                 </option>
               )}
             </For>
@@ -459,16 +462,29 @@ const ConfigForXd = () => {
             {t('switchEndpoint')}
           </Button>
         </div>
+
+        <div class="flex flex-col items-center">
+          <ConfigTitle>{t('autoSwitchEndpoint')}</ConfigTitle>
+
+          <div class="h-10">
+            <Toggle
+              checked={autoSwitchEndpoint()}
+              onChange={(e) => setAutoSwitchEndpoint(e.target.checked)}
+            />
+          </div>
+        </div>
       </div>
 
       <div class="flex flex-col gap-2">
         <div class="flex flex-col items-center">
           <ConfigTitle>{t('autoSwitchTheme')}</ConfigTitle>
 
-          <Toggle
-            checked={autoSwitchTheme()}
-            onChange={(e) => setAutoSwitchTheme(e.target.checked)}
-          />
+          <div class="h-10">
+            <Toggle
+              checked={autoSwitchTheme()}
+              onChange={(e) => setAutoSwitchTheme(e.target.checked)}
+            />
+          </div>
         </div>
 
         <Show when={autoSwitchTheme()}>
@@ -477,6 +493,7 @@ const ConfigForXd = () => {
               <ConfigTitle>{t('favDayTheme')}</ConfigTitle>
 
               <Select
+                class="w-full"
                 onChange={(e) =>
                   setFavDayTheme(e.target.value as (typeof themes)[number])
                 }
@@ -495,6 +512,7 @@ const ConfigForXd = () => {
               <ConfigTitle>{t('favNightTheme')}</ConfigTitle>
 
               <Select
+                class="w-full"
                 onChange={(e) =>
                   setFavNightTheme(e.target.value as (typeof themes)[number])
                 }
@@ -511,25 +529,23 @@ const ConfigForXd = () => {
           </div>
         </Show>
       </div>
+
+      <div class="col-span-1 flex flex-col gap-2 sm:col-span-2">
+        <Button class="btn-error" onClick={() => resetXdConfig()}>
+          {t('resetSettings')}
+        </Button>
+      </div>
     </div>
   )
 }
 
 export default () => {
-  const navigate = useNavigate()
-
-  if (!endpoint()) {
-    navigate('/setup', { replace: true })
-
-    return null
-  }
-
   const [t] = useI18n()
 
   const frontendVersion = `v${import.meta.env.APP_VERSION}`
-  const [backendVersion] = createResource(fetchBackendVersionAPI, {
-    initialValue: '',
-  })
+  const backendVersionQuery = useBackendVersion()
+
+  const backendVersion = () => backendVersionQuery.data ?? ''
 
   const isSingBox = createMemo(
     () => backendVersion()?.includes('sing-box') || false,
@@ -539,7 +555,7 @@ export default () => {
     <>
       <DocumentTitle>{t('config')}</DocumentTitle>
 
-      <div class="mx-auto flex max-w-screen-md flex-col gap-4">
+      <div class="mx-auto flex max-w-3xl flex-col gap-4">
         <Show when={!isSingBox()}>
           <ConfigTitle withDivider>{t('dnsQuery')}</ConfigTitle>
 
@@ -556,7 +572,7 @@ export default () => {
 
         <ConfigTitle withDivider>{t('version')}</ConfigTitle>
 
-        <Show when={!backendVersion.loading}>
+        <Show when={!backendVersionQuery.isLoading}>
           <Versions
             frontendVersion={frontendVersion}
             backendVersion={backendVersion}

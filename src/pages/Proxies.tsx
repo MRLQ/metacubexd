@@ -13,9 +13,11 @@ import {
   DocumentTitle,
   ProxiesSettingsModal,
   ProxyNodeCard,
+  ProxyNodeListItem,
   ProxyNodePreview,
   SubscriptionInfo,
 } from '~/components'
+import { PROXIES_DISPLAY_MODE } from '~/constants'
 import { ProxiesRenderWarpper } from '~/components/ProxiesRenderWrapper'
 import {
   filterProxiesByAvailability,
@@ -24,11 +26,12 @@ import {
   sortProxiesByOrderingType,
 } from '~/helpers'
 import { useI18n } from '~/i18n'
+import { useWindowFocusRefetch } from '~/query/sync'
 import {
-  endpoint,
   hideUnAvailableProxies,
   iconHeight,
   iconMarginRight,
+  proxiesDisplayMode,
   proxiesOrderingType,
   useConnections,
   useProxies,
@@ -40,14 +43,6 @@ enum ActiveTab {
 }
 
 export default () => {
-  const navigate = useNavigate()
-
-  if (!endpoint()) {
-    navigate('/setup', { replace: true })
-
-    return null
-  }
-
   let proxiesSettingsModalRef: HTMLDialogElement | undefined
 
   const [t] = useI18n()
@@ -85,6 +80,9 @@ export default () => {
   }
 
   onMount(fetchProxies)
+
+  // Enable window focus refetch for proxies data
+  useWindowFocusRefetch(fetchProxies, { staleTime: 30000 })
 
   const onProxyGroupLatencyTestClick = async (
     e: MouseEvent,
@@ -152,12 +150,12 @@ export default () => {
 
       <div class="flex h-full flex-col gap-2">
         <div class="flex items-center gap-2">
-          <div class="tabs tabs-sm gap-2 tabs-box">
+          <div class="tabs-box tabs gap-2 tabs-sm">
             <For each={tabs()}>
               {(tab) => (
                 <button
                   class={twMerge(
-                    activeTab() === tab.type && 'bg-primary !text-neutral',
+                    activeTab() === tab.type && 'bg-primary text-neutral!',
                     'sm:tab-md tab gap-2 px-2',
                   )}
                   onClick={() => setActiveTab(tab.type)}
@@ -295,6 +293,9 @@ export default () => {
                           proxyNameList={sortedProxyNames()}
                           now={proxyGroup.now}
                           testUrl={proxyGroup.testUrl || null}
+                          onSelect={(name) =>
+                            void selectProxyInGroup(proxyGroup, name)
+                          }
                         />
                       </Show>
                     </div>
@@ -310,15 +311,32 @@ export default () => {
                     >
                       <For each={sortedProxyNames()}>
                         {(proxyName) => (
-                          <ProxyNodeCard
-                            proxyName={proxyName}
-                            testUrl={proxyGroup.testUrl || null}
-                            timeout={proxyGroup.timeout ?? null}
-                            isSelected={proxyGroup.now === proxyName}
-                            onClick={() =>
-                              void selectProxyInGroup(proxyGroup, proxyName)
+                          <Show
+                            when={
+                              proxiesDisplayMode() === PROXIES_DISPLAY_MODE.LIST
                             }
-                          />
+                            fallback={
+                              <ProxyNodeCard
+                                proxyName={proxyName}
+                                testUrl={proxyGroup.testUrl || null}
+                                timeout={proxyGroup.timeout ?? null}
+                                isSelected={proxyGroup.now === proxyName}
+                                onClick={() =>
+                                  void selectProxyInGroup(proxyGroup, proxyName)
+                                }
+                              />
+                            }
+                          >
+                            <ProxyNodeListItem
+                              proxyName={proxyName}
+                              testUrl={proxyGroup.testUrl || null}
+                              timeout={proxyGroup.timeout ?? null}
+                              isSelected={proxyGroup.now === proxyName}
+                              onClick={() =>
+                                void selectProxyInGroup(proxyGroup, proxyName)
+                              }
+                            />
+                          </Show>
                         )}
                       </For>
                     </Collapse>
@@ -431,11 +449,24 @@ export default () => {
                     >
                       <For each={sortedProxyNames()}>
                         {(proxyName) => (
-                          <ProxyNodeCard
-                            proxyName={proxyName}
-                            testUrl={proxyProvider.testUrl}
-                            timeout={proxyProvider.timeout ?? null}
-                          />
+                          <Show
+                            when={
+                              proxiesDisplayMode() === PROXIES_DISPLAY_MODE.LIST
+                            }
+                            fallback={
+                              <ProxyNodeCard
+                                proxyName={proxyName}
+                                testUrl={proxyProvider.testUrl}
+                                timeout={proxyProvider.timeout ?? null}
+                              />
+                            }
+                          >
+                            <ProxyNodeListItem
+                              proxyName={proxyName}
+                              testUrl={proxyProvider.testUrl}
+                              timeout={proxyProvider.timeout ?? null}
+                            />
+                          </Show>
                         )}
                       </For>
                     </Collapse>
