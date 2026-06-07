@@ -1,19 +1,10 @@
 #!/bin/sh
 
-# Sanitize the DEFAULT_BACKEND_URL by escaping special characters for JavaScript
-sanitize_url() {
-  # Replace backslashes, single quotes, and control characters
-  printf '%s' "$1" | sed "s/\\\\/\\\\\\\\/g; s/'/\\\\'/g; s/\"/\\\\\"/g"
-}
+set -eu
 
-SANITIZED_URL=$(sanitize_url "${DEFAULT_BACKEND_URL:-}")
+# Map DEFAULT_BACKEND_URL to Nuxt runtime config env var.
+# Nitro embeds public asset metadata at build time, so do not rewrite config.js.
+export NUXT_PUBLIC_DEFAULT_BACKEND_URL="${DEFAULT_BACKEND_URL:-}"
 
-# Generate config.js from environment variables
-cat > /srv/config.js << EOF
-window.__METACUBEXD_CONFIG__ = {
-  defaultBackendURL: '${SANITIZED_URL}',
-}
-EOF
-
-# Start Caddy
-exec caddy run
+# Start Node.js server
+exec node /app/.output/server/index.mjs
